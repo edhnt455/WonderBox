@@ -9,13 +9,54 @@ final class MenuBarMetricTests: XCTestCase {
         XCTAssertEqual(value.title(options: .init()), "")
         XCTAssertEqual(value.title(options: .init(showCPU: true)), "CPU 12%")
         XCTAssertEqual(value.title(options: .init(showMemory: true)), "RAM 64%")
-        XCTAssertEqual(value.title(options: .init(showCPU: true, showMemory: true)), "CPU 12% · RAM 64%")
+        XCTAssertEqual(value.title(options: .init(showCPU: true, showMemory: true)), "CPU 12%  RAM 64%")
         XCTAssertEqual(value.title(options: .init(menuBarVisible: false, showCPU: true, showMemory: true)), "")
-        XCTAssertEqual(MenuBarMetricSnapshot(memory: 0.64).title(options: .init(showCPU: true, showMemory: true)), "CPU — · RAM 64%")
+        XCTAssertEqual(MenuBarMetricSnapshot(memory: 0.64).title(options: .init(showCPU: true, showMemory: true)), "CPU —  RAM 64%")
         for invalid in [Double.nan, .infinity, -0.01, 1.01] {
             XCTAssertEqual(MenuBarMetricSnapshot(cpu: invalid).title(options: .init(showCPU: true)), "CPU —")
         }
-        XCTAssertEqual(MenuBarMetricSnapshot(cpu: 0, memory: 1).title(options: .init(showCPU: true, showMemory: true)), "CPU 0% · RAM 100%")
+        XCTAssertEqual(MenuBarMetricSnapshot(cpu: 0, memory: 1).title(options: .init(showCPU: true, showMemory: true)), "CPU 0%  RAM 100%")
+        XCTAssertTrue(MenuBarMetricOptions().showsAppIcon)
+        XCTAssertTrue(MenuBarMetricOptions(onlyMetrics: true).showsAppIcon)
+        XCTAssertFalse(MenuBarMetricOptions(showCPU: true, onlyMetrics: true).showsAppIcon)
+        XCTAssertFalse(MenuBarMetricOptions(showMemory: true, onlyMetrics: true).showsAppIcon)
+        XCTAssertTrue(MenuBarMetricOptions(showCPU: true, showMemory: true).showsAppIcon)
+    }
+
+    func testUsageColorMatchesStatsZonesAndPaintsThePercentage() throws {
+        XCTAssertEqual(MenuBarUsageColor.resolve(0), .blue)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.6), .blue)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.6.nextUp), .orange)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.8), .orange)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.8.nextUp), .red)
+        XCTAssertEqual(MenuBarUsageColor.resolve(1), .red)
+        XCTAssertNil(MenuBarUsageColor.resolve(nil))
+        for invalid in [Double.nan, .infinity, -0.01, 1.01] {
+            XCTAssertNil(MenuBarUsageColor.resolve(invalid))
+        }
+
+        let aqua = try XCTUnwrap(NSAppearance(named: .aqua))
+        let low = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.12), appearance: aqua))
+        let mid = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: .init(memory: 0.7), appearance: aqua))
+        let high = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.91), appearance: aqua))
+        let both = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true, showMemory: true), snapshot: .init(cpu: 0.91, memory: 0.12), appearance: aqua))
+        let unknown = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(), appearance: aqua))
+        XCTAssertFalse(low.isTemplate)
+        XCTAssertFalse(high.isTemplate)
+        XCTAssertEqual(usageColors(in: low, appearance: aqua), [.blue])
+        XCTAssertEqual(usageColors(in: mid, appearance: aqua), [.orange])
+        XCTAssertEqual(usageColors(in: high, appearance: aqua), [.red])
+        XCTAssertEqual(usageColors(in: both, appearance: aqua), [.blue, .red])
+        XCTAssertGreaterThan(both.size.height, both.size.width / 4, "Each percentage sits under its label")
+        XCTAssertGreaterThan(both.size.width, 60)
+        XCTAssertLessThan(both.size.width, 100)
+        XCTAssertEqual(usageColors(in: unknown, appearance: aqua), [])
+        XCTAssertNil(MenuBarMetricArtwork.image(options: .init(), snapshot: .init(cpu: 0.9), appearance: aqua))
+        let dark = try XCTUnwrap(NSAppearance(named: .darkAqua))
+        let darkLow = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.12), appearance: dark))
+        XCTAssertEqual(usageColors(in: darkLow, appearance: dark), [.blue])
+        XCTAssertGreaterThan(brightNeutralPixels(in: darkLow), 8)
+        XCTAssertEqual(brightNeutralPixels(in: low), 0)
     }
 
     func testCPUUsesAggregateDeltasAndMemoryMatchesTheExistingUsedFraction() {
@@ -49,10 +90,14 @@ final class MenuBarMetricTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let cpu = AppStorage(wrappedValue: false, MenuBarMetricOptions.cpuKey, store: defaults)
         let memory = AppStorage(wrappedValue: false, MenuBarMetricOptions.memoryKey, store: defaults)
+        let onlyMetrics = AppStorage(wrappedValue: false, MenuBarMetricOptions.onlyMetricsKey, store: defaults)
         XCTAssertFalse(cpu.wrappedValue)
         XCTAssertFalse(memory.wrappedValue)
+        XCTAssertFalse(onlyMetrics.wrappedValue)
         cpu.wrappedValue = true
         XCTAssertFalse(memory.wrappedValue)
+        XCTAssertFalse(onlyMetrics.wrappedValue)
+        onlyMetrics.wrappedValue = true
         memory.wrappedValue = true
         cpu.wrappedValue = false
         defaults.set(false, forKey: "showMenuBar")
@@ -198,6 +243,68 @@ final class MenuBarMetricTests: XCTestCase {
             host.cacheDisplay(in: host.bounds, to: bitmap)
             try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: "/tmp/wonderbox-menu-metric-settings.png"))
         }
+    }
+
+    private func usageColors(in image: NSImage, appearance: NSAppearance) -> Set<MenuBarUsageColor> {
+        let scale: CGFloat = 2
+        let pixelsWide = Int(ceil(image.size.width * scale))
+        let pixelsHigh = Int(ceil(image.size.height * scale))
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelsWide, pixelsHigh: pixelsHigh, bitsPerSample: 8,
+                                             samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return [] }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: 0, y: 0, width: image.size.width * scale, height: image.size.height * scale))
+        NSGraphicsContext.restoreGraphicsState()
+        let targets = [MenuBarUsageColor.blue, .orange, .red].map { tone -> (MenuBarUsageColor, (CGFloat, CGFloat, CGFloat)) in
+            var color = NSColor.black
+            appearance.performAsCurrentDrawingAppearance {
+                switch tone {
+                case .blue: color = NSColor.systemBlue
+                case .orange: color = NSColor.orange
+                case .red: color = NSColor.red
+                }
+                color = color.usingColorSpace(.sRGB) ?? color
+            }
+            return (tone, (color.redComponent, color.greenComponent, color.blueComponent))
+        }
+        var scores: [MenuBarUsageColor: Int] = [:]
+        for y in 0..<pixelsHigh {
+            for x in 0..<pixelsWide {
+                guard let pixel = bitmap.colorAt(x: x, y: y), pixel.alphaComponent > 0.6 else { continue }
+                let sample = (pixel.redComponent, pixel.greenComponent, pixel.blueComponent)
+                let nearest = targets.min { distance(sample, $0.1) < distance(sample, $1.1) }
+                guard let nearest, distance(sample, nearest.1) < 0.08 else { continue }
+                scores[nearest.0, default: 0] += 1
+            }
+        }
+        return Set(scores.filter { $0.value >= 8 }.keys)
+    }
+
+    private func brightNeutralPixels(in image: NSImage) -> Int {
+        let scale: CGFloat = 2
+        let pixelsWide = Int(ceil(image.size.width * scale))
+        let pixelsHigh = Int(ceil(image.size.height * scale))
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelsWide, pixelsHigh: pixelsHigh, bitsPerSample: 8,
+                                             samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return 0 }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: 0, y: 0, width: image.size.width * scale, height: image.size.height * scale))
+        NSGraphicsContext.restoreGraphicsState()
+        var count = 0
+        for y in 0..<pixelsHigh {
+            for x in 0..<pixelsWide {
+                guard let pixel = bitmap.colorAt(x: x, y: y), pixel.alphaComponent > 0.6 else { continue }
+                if min(pixel.redComponent, pixel.greenComponent, pixel.blueComponent) > 0.75 { count += 1 }
+            }
+        }
+        return count
+    }
+
+    private func distance(_ lhs: (CGFloat, CGFloat, CGFloat), _ rhs: (CGFloat, CGFloat, CGFloat)) -> CGFloat {
+        let red = lhs.0 - rhs.0, green = lhs.1 - rhs.1, blue = lhs.2 - rhs.2
+        return red * red + green * green + blue * blue
     }
 
     private func sample(_ time: Double, total: UInt64?, idle: UInt64?) -> MenuBarResourceSample {

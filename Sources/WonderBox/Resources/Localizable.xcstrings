@@ -1110,12 +1110,12 @@
         }
       }
     },
-    "CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space.": {
+    "CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space. Only show CPU and RAM hides the app icon while a percentage is visible.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "CPU 和内存占用每 3 秒刷新，关闭主窗口后仍会更新。可分别关闭任一项以节省菜单栏空间。"
+            "value": "CPU 和内存占用每 3 秒刷新，关闭主窗口后仍会更新。可分别关闭任一项以节省菜单栏空间。打开“只显示 CPU 和 RAM”后，有占用数字时会隐藏应用图标。"
           }
         }
       }
@@ -3773,6 +3773,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "仅清理未运行应用的可重建缓存，不包含下载文件、应用数据、聊天缓存和废纸篓。WonderBox 运行期间每五分钟检查一次，菜单栏驻留时也有效。"
+          }
+        }
+      }
+    },
+    "Only show CPU and RAM": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只显示 CPU 和 RAM"
           }
         }
       }

@@ -23,7 +23,7 @@
 
 ## 1.2 正式版
 
-当前版本：**1.2.0**（构建 **120**）。[下载](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.0) · [版本说明](docs/releases/v1.2.0.md)。
+当前版本：**1.3.0**（构建 **130**）。[下载](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.0) · [版本说明](docs/releases/v1.2.0.md)。
 
 ### 菜单栏 CPU 与内存占用
 

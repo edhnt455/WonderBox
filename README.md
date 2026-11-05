@@ -23,7 +23,7 @@
 
 ## 1.2 Stable Release
 
-Current version: **1.2.0**, build **120**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.0) · [Release notes](docs/releases/v1.2.0.md).
+Current version: **1.3.0**, build **130**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.0) · [Release notes](docs/releases/v1.2.0.md).
 
 ### Menu bar CPU and RAM
 
