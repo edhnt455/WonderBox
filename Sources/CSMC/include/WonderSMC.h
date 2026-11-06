@@ -33,10 +33,12 @@ int wc_smc_read_power(WCPowerReading *readings, int capacity);
 /* Optional IOReport energy counters. Each reader is owned by one serial sampler. */
 typedef struct WCEnergyReader WCEnergyReader;
 typedef struct {
-    char channel[32];
+    char channel[64];
     char unit[8];
     int64_t energy;
+    int32_t source; /* 0: legacy Energy Model, 1: verified CLPC aggregate */
 } WCEnergyReading;
+uint64_t wc_energy_clpc_cpu_report_id(const char *bundle, const char *os_build);
 WCEnergyReader *wc_energy_create(void);
 void wc_energy_destroy(WCEnergyReader *reader);
 int wc_energy_sample(WCEnergyReader *reader, WCEnergyReading *readings, int capacity, double *elapsed);

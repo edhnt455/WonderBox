@@ -1130,6 +1130,16 @@
         }
       }
     },
+    "CPU power sensor is unavailable on this system": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前系统暂无可读取的 CPU 功耗传感器"
+          }
+        }
+      }
+    },
     "CPU/GPU power uses macOS energy counters where available; system power uses the SMC system sensor. These are hardware-reported or model-based readings, not wall-outlet measurements. Components may overlap and must not be added together.": {
       "localizations": {
         "zh-Hans": {
@@ -2258,16 +2268,6 @@
         }
       }
     },
-    "Fan Power": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "风扇功耗"
-          }
-        }
-      }
-    },
     "Fan Speed": {
       "localizations": {
         "zh-Hans": {
@@ -3165,6 +3165,16 @@
       },
       "extractionState": "stale"
     },
+    "Measuring power…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测量功耗…"
+          }
+        }
+      }
+    },
     "Measuring process memory…": {
       "localizations": {
         "zh-Hans": {
@@ -3593,16 +3603,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "未找到关联文件。可以关闭此窗口，或授予完全磁盘访问权限后重新扫描。"
-          }
-        }
-      }
-    },
-    "No supported fan watt sensor; RPM is not watts.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "尚无受支持的风扇功耗传感器；转速不等于瓦数。"
           }
         }
       }

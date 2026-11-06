@@ -63,7 +63,6 @@ struct PowerContent: View {
         ForEach(PowerComponent.allCases) { item in
             readingCard(item, at: date).frame(minWidth: minimumWidth)
         }
-        fanCard(at: date).frame(minWidth: minimumWidth)
     }
 
     private func readingCard(_ item: PowerComponent, at date: Date) -> some View {
@@ -73,28 +72,12 @@ struct PowerContent: View {
             Text(PowerReading.formatted(reading?.watts))
                 .font(.system(size: 27, weight: .bold, design: .rounded)).monospacedDigit()
                 .accessibilityLabel(item.title + ": " + PowerReading.formatted(reading?.watts))
-            Text(reading?.source ?? String(localized: "No current reading"))
+            Text(reading?.source ?? (monitor.isRefreshing && !monitor.hasSampled
+                 ? String(localized: "Measuring power…") : item == .cpu && monitor.hasSampled
+                 ? String(localized: "CPU power sensor is unavailable on this system") : String(localized: "No current reading")))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             if reading?.isCPUPackage == true {
                 Text("CPU package; may include integrated GPU").font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
-        .appPanel()
-    }
-
-    private func fanCard(at date: Date) -> some View {
-        let current = (0...10).contains(date.timeIntervalSince(monitor.snapshot.sampledAt))
-        return VStack(alignment: .leading, spacing: 8) {
-            Label("Fan Power", systemImage: "fan").font(.subheadline.weight(.medium)).foregroundStyle(AppSection.fan.tint)
-            Text("—").font(.system(size: 27, weight: .bold, design: .rounded))
-            Text("No supported fan watt sensor; RPM is not watts.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if current {
-                ForEach(monitor.snapshot.fans) { fan in
-                    Text("\(fan.name): \(Int(fan.currentRPM.rounded())) RPM")
-                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                }
             }
         }
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
