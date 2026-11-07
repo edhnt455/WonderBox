@@ -102,7 +102,8 @@
             "value": "%@：%lld RPM"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "%@; %@": {
       "localizations": {
@@ -1110,16 +1111,6 @@
         }
       }
     },
-    "CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space. Only show CPU and RAM hides the app icon while a percentage is visible.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CPU 和内存占用每 3 秒刷新，关闭主窗口后仍会更新。可分别关闭任一项以节省菜单栏空间。打开“只显示 CPU 和 RAM”后，有占用数字时会隐藏应用图标。"
-          }
-        }
-      }
-    },
     "CPU package; may include integrated GPU": {
       "localizations": {
         "zh-Hans": {
@@ -1136,6 +1127,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "当前系统暂无可读取的 CPU 功耗传感器"
+          }
+        }
+      }
+    },
+    "CPU, RAM and system power refresh every 3 seconds, even with the main window closed. Turn off any value to save menu bar space. Power is shown in watts; unavailable sensors show —. Only show metrics hides the app icon while a reading is visible.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU、内存和系统功耗每 3 秒刷新，关闭主窗口后仍继续更新。可关闭任意数值以节省菜单栏空间。功耗以瓦显示，传感器不可用时显示 —。打开“只显示数值”后，有读数时会隐藏应用图标。"
           }
         }
       }
@@ -3777,12 +3778,12 @@
         }
       }
     },
-    "Only show CPU and RAM": {
+    "Only show metrics": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "只显示 CPU 和 RAM"
+            "value": "只显示数值"
           }
         }
       }
@@ -4980,6 +4981,16 @@
         }
       }
     },
+    "Show system power in menu bar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏显示系统功耗"
+          }
+        }
+      }
+    },
     "Simulator caches, device support files and documentation caches": {
       "localizations": {
         "zh-Hans": {
@@ -6110,6 +6121,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "查看并选择项目"
+          }
+        }
+      }
+    },
+    "View power details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看功耗详情"
           }
         }
       }

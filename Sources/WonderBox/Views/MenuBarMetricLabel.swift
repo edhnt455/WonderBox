@@ -72,16 +72,20 @@ enum MenuBarMetricArtwork {
         let label = resolved(.labelColor, appearance: appearance)
         let alignment = NSMutableParagraphStyle()
         alignment.alignment = .center
-        func column(_ name: String, fraction: Double?) -> Column {
-            let valueColor = MenuBarUsageColor.resolve(fraction).map { resolved($0.nsColor, appearance: appearance) } ?? label
+        func column(_ name: String, value: String, color: NSColor) -> Column {
             let nameText = NSAttributedString(string: name, attributes: [.font: labelFont, .foregroundColor: label, .paragraphStyle: alignment])
-            let valueText = NSAttributedString(string: MenuBarMetricSnapshot.percent(fraction), attributes: [.font: valueFont, .foregroundColor: valueColor, .paragraphStyle: alignment])
+            let valueText = NSAttributedString(string: value, attributes: [.font: valueFont, .foregroundColor: color, .paragraphStyle: alignment])
             let width = max(measure(nameText), measure(valueText)) + columnPadding * 2
             return Column(name: nameText, value: valueText, width: width)
         }
+        func usageColumn(_ name: String, fraction: Double?) -> Column {
+            let color = MenuBarUsageColor.resolve(fraction).map { resolved($0.nsColor, appearance: appearance) } ?? label
+            return column(name, value: MenuBarMetricSnapshot.percent(fraction), color: color)
+        }
         var columns: [Column] = []
-        if options.showCPU { columns.append(column("CPU", fraction: snapshot.cpu)) }
-        if options.showMemory { columns.append(column("RAM", fraction: snapshot.memory)) }
+        if options.showCPU { columns.append(usageColumn("CPU", fraction: snapshot.cpu)) }
+        if options.showMemory { columns.append(usageColumn("RAM", fraction: snapshot.memory)) }
+        if options.showPower { columns.append(column("PWR", value: MenuBarMetricSnapshot.watts(snapshot.systemPowerWatts), color: label)) }
         return columns
     }
 
@@ -117,6 +121,7 @@ struct MenuBarMetricSettings: View {
     @AppStorage(MenuBarMetricOptions.cpuKey) private var showCPU = false
     @AppStorage(MenuBarMetricOptions.memoryKey) private var showMemory = false
     @AppStorage(MenuBarMetricOptions.onlyMetricsKey) private var onlyMetrics = false
+    @AppStorage(MenuBarMetricOptions.powerKey) private var showPower = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -124,10 +129,12 @@ struct MenuBarMetricSettings: View {
                 .accessibilityIdentifier("menubar.show-cpu")
             Toggle("Show memory usage in menu bar", isOn: $showMemory)
                 .accessibilityIdentifier("menubar.show-memory")
-            Toggle("Only show CPU and RAM", isOn: $onlyMetrics)
+            Toggle("Show system power in menu bar", isOn: $showPower)
+                .accessibilityIdentifier("menubar.show-power")
+            Toggle("Only show metrics", isOn: $onlyMetrics)
                 .accessibilityIdentifier("menubar.only-metrics")
-                .disabled(!(showCPU || showMemory))
-            Text("CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space. Only show CPU and RAM hides the app icon while a percentage is visible.")
+                .disabled(!(showCPU || showMemory || showPower))
+            Text("CPU, RAM and system power refresh every 3 seconds, even with the main window closed. Turn off any value to save menu bar space. Power is shown in watts; unavailable sensors show —. Only show metrics hides the app icon while a reading is visible.")
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
