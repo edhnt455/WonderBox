@@ -153,11 +153,11 @@ enum SystemMonitor {
     }
 
     static func memoryBreakdown() -> MemoryBreakdown {
-        memoryBreakdownReading() ?? MemoryBreakdown(swapUsed: swapUsage(), pressure: pressureLevel())
+        memoryBreakdownReading() ?? MemoryBreakdown(swapUsed: swapUsage(), pressure: memoryPressureReading() ?? .normal)
     }
 
     static func memoryBreakdownReading() -> MemoryBreakdown? {
-        var breakdown = MemoryBreakdown(swapUsed: swapUsage(), pressure: pressureLevel())
+        var breakdown = MemoryBreakdown(swapUsed: swapUsage(), pressure: memoryPressureReading() ?? .normal)
         var info = vm_statistics64_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutablePointer(to: &info) {
@@ -186,11 +186,11 @@ enum SystemMonitor {
         return usage.xsu_used
     }
 
-    private static func pressureLevel() -> MemoryPressure {
+    static func memoryPressureReading() -> MemoryPressure? {
         var level: Int32 = 0
         var size = MemoryLayout<Int32>.size
-        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return .normal }
-        return MemoryPressure(rawValue: Int(level)) ?? .normal
+        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return nil }
+        return MemoryPressure(rawValue: Int(level))
     }
 
     private static func diskUsage() -> (used: UInt64, total: UInt64) {

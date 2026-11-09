@@ -13,7 +13,7 @@ struct MenuBarMetricLabel: View {
                 Image(nsImage: MenuBarAppIcon.image(for: style))
             }
             if !title.isEmpty, let metrics = MenuBarMetricArtwork.image(options: options, snapshot: snapshot, appearance: appearance) {
-                Image(nsImage: metrics).id("\(title)|\(tone(snapshot.cpu))|\(tone(snapshot.memory))|\(colorScheme)")
+                Image(nsImage: metrics).id("\(title)|\(MenuBarUsageColor.resolve(snapshot.cpu)?.rawValue ?? "-")|\(snapshot.memoryColor?.rawValue ?? "-")|\(colorScheme)")
             }
         }
         .accessibilityElement(children: .ignore)
@@ -22,15 +22,6 @@ struct MenuBarMetricLabel: View {
 
     private var appearance: NSAppearance {
         NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua) ?? .currentDrawing()
-    }
-
-    private func tone(_ fraction: Double?) -> String {
-        switch MenuBarUsageColor.resolve(fraction) {
-        case .blue: "blue"
-        case .orange: "orange"
-        case .red: "red"
-        case nil: "-"
-        }
     }
 }
 
@@ -84,7 +75,10 @@ enum MenuBarMetricArtwork {
         }
         var columns: [Column] = []
         if options.showCPU { columns.append(usageColumn("CPU", fraction: snapshot.cpu)) }
-        if options.showMemory { columns.append(usageColumn("RAM", fraction: snapshot.memory)) }
+        if options.showMemory {
+            let color = snapshot.memoryColor.map { resolved($0.nsColor, appearance: appearance) } ?? label
+            columns.append(column("RAM", value: MenuBarMetricSnapshot.percent(snapshot.memory), color: color))
+        }
         if options.showPower { columns.append(column("PWR", value: MenuBarMetricSnapshot.watts(snapshot.systemPowerWatts), color: label)) }
         return columns
     }
@@ -112,6 +106,8 @@ private extension MenuBarUsageColor {
         case .blue: .systemBlue
         case .orange: .orange
         case .red: .red
+        case .green: .systemGreen
+        case .yellow: .systemYellow
         }
     }
 }

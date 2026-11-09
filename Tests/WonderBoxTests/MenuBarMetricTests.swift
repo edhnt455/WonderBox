@@ -39,16 +39,16 @@ final class MenuBarMetricTests: XCTestCase {
 
         let aqua = try XCTUnwrap(NSAppearance(named: .aqua))
         let low = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.12), appearance: aqua))
-        let mid = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: .init(memory: 0.7), appearance: aqua))
+        let mid = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.7), appearance: aqua))
         let high = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(cpu: 0.91), appearance: aqua))
-        let both = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true, showMemory: true), snapshot: .init(cpu: 0.91, memory: 0.12), appearance: aqua))
+        let both = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true, showMemory: true), snapshot: .init(cpu: 0.91, memory: 0.12, memoryPressure: .normal), appearance: aqua))
         let unknown = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true), snapshot: .init(), appearance: aqua))
         XCTAssertFalse(low.isTemplate)
         XCTAssertFalse(high.isTemplate)
         XCTAssertEqual(usageColors(in: low, appearance: aqua), [.blue])
         XCTAssertEqual(usageColors(in: mid, appearance: aqua), [.orange])
         XCTAssertEqual(usageColors(in: high, appearance: aqua), [.red])
-        XCTAssertEqual(usageColors(in: both, appearance: aqua), [.blue, .red])
+        XCTAssertEqual(usageColors(in: both, appearance: aqua), [.green, .red])
         XCTAssertGreaterThan(both.size.height, both.size.width / 4, "Each percentage sits under its label")
         XCTAssertGreaterThan(both.size.width, 60)
         XCTAssertLessThan(both.size.width, 100)
@@ -61,10 +61,52 @@ final class MenuBarMetricTests: XCTestCase {
         XCTAssertEqual(brightNeutralPixels(in: low), 0)
     }
 
+    func testRAMColorFollowsPressureIndependentlyOfUtilizationInBothAppearances() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let appearance = try XCTUnwrap(NSAppearance(named: name))
+            for fraction in [0.12, 0.7, 0.95] {
+                for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.green), (.warning, .yellow), (.critical, .red)] {
+                    let snapshot = MenuBarMetricSnapshot(memory: fraction, memoryPressure: pressure)
+                    XCTAssertEqual(snapshot.memoryColor, color)
+                    let image = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: snapshot, appearance: appearance))
+                    XCTAssertEqual(usageColors(in: image, appearance: appearance), [color])
+                    XCTAssertEqual(snapshot.title(options: .init(showMemory: true)), "RAM \(Int((fraction * 100).rounded()))%")
+                }
+            }
+            let unknown = MenuBarMetricSnapshot(memory: 0.95)
+            XCTAssertNil(unknown.memoryColor)
+            let image = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: unknown, appearance: appearance))
+            XCTAssertEqual(usageColors(in: image, appearance: appearance), [])
+            for invalid in [Double.nan, .infinity, -0.01, 1.01] {
+                let snapshot = MenuBarMetricSnapshot(memory: invalid, memoryPressure: .normal)
+                XCTAssertNil(snapshot.memoryColor)
+                let image = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: snapshot, appearance: appearance))
+                XCTAssertEqual(usageColors(in: image, appearance: appearance), [])
+            }
+            XCTAssertNil(MenuBarMetricSnapshot(memoryPressure: .normal).memoryColor)
+        }
+    }
+
+    func testMemoryPressureUpdatesWithoutCPUOrPercentageChangesAndClearsOnFailure() {
+        var sample = MenuBarResourceSample(memoryFraction: 0.95, memoryPressure: .normal)
+        for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.green), (.warning, .yellow), (.critical, .red)] {
+            sample.memoryPressure = pressure
+            let snapshot = MenuBarMetricSnapshot(current: sample, previous: nil)
+            XCTAssertEqual(snapshot.memoryPressure, pressure)
+            XCTAssertEqual(snapshot.memoryColor, color)
+            XCTAssertEqual(snapshot.memory, 0.95)
+            XCTAssertNil(snapshot.cpu)
+        }
+        let missingPressure = MenuBarResourceSample(memoryFraction: 0.95)
+        let snapshot = MenuBarMetricSnapshot(current: missingPressure, previous: sample)
+        XCTAssertNil(snapshot.memoryPressure)
+        XCTAssertNil(snapshot.memoryColor)
+    }
+
     func testPowerArtworkPreservesStackedMetricsAndNeutralWatts() throws {
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try XCTUnwrap(NSAppearance(named: name))
-            let snapshot = MenuBarMetricSnapshot(cpu: 0.91, memory: 0.12, systemPowerWatts: 18.26)
+            let snapshot = MenuBarMetricSnapshot(cpu: 0.91, memory: 0.12, memoryPressure: .normal, systemPowerWatts: 18.26)
             let power = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showPower: true), snapshot: snapshot, appearance: appearance))
             let usage = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true, showMemory: true), snapshot: snapshot, appearance: appearance))
             let combined = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showCPU: true, showMemory: true, showPower: true), snapshot: snapshot, appearance: appearance))
@@ -72,7 +114,7 @@ final class MenuBarMetricTests: XCTestCase {
             XCTAssertEqual(power.size.height, usage.size.height)
             XCTAssertGreaterThan(combined.size.width, usage.size.width + power.size.width)
             XCTAssertEqual(usageColors(in: power, appearance: appearance), [])
-            XCTAssertEqual(usageColors(in: combined, appearance: appearance), [.blue, .red])
+            XCTAssertEqual(usageColors(in: combined, appearance: appearance), [.green, .red])
             XCTAssertNil(MenuBarMetricArtwork.image(options: .init(menuBarVisible: false, showPower: true), snapshot: snapshot, appearance: appearance))
         }
     }
@@ -184,6 +226,7 @@ final class MenuBarMetricTests: XCTestCase {
         defer { monitor.configure(.init()) }
         await eventually { monitor.snapshot.cpu == 0.25 }
         XCTAssertNil(monitor.snapshot.memory)
+        XCTAssertNil(monitor.snapshot.memoryPressure)
         let intervals = await feed.intervals
         XCTAssertEqual(intervals.first, 1)
         XCTAssertTrue(intervals.dropFirst().allSatisfy { $0 == 3 })
@@ -205,6 +248,8 @@ final class MenuBarMetricTests: XCTestCase {
         monitor.configure(options)
         defer { monitor.configure(.init()) }
         await eventually { monitor.snapshot.memory == 0.64 }
+        XCTAssertEqual(monitor.snapshot.memoryPressure, .warning)
+        XCTAssertEqual(monitor.snapshot.memoryColor, .yellow)
         for _ in 0..<20 { monitor.configure(options) }
         let requests = await feed.options
         let intervals = await feed.intervals
@@ -298,6 +343,8 @@ final class MenuBarMetricTests: XCTestCase {
         await eventually { monitor.snapshot.cpu != nil && monitor.snapshot.memory != nil }
         XCTAssertTrue((0...1).contains(monitor.snapshot.cpu ?? -1))
         XCTAssertTrue((0...1).contains(monitor.snapshot.memory ?? -1))
+        XCTAssertNotNil(monitor.snapshot.memoryPressure)
+        XCTAssertNotNil(monitor.snapshot.memoryColor)
     }
 
     @MainActor
@@ -370,13 +417,15 @@ final class MenuBarMetricTests: XCTestCase {
         NSGraphicsContext.current = context
         image.draw(in: NSRect(x: 0, y: 0, width: image.size.width * scale, height: image.size.height * scale))
         NSGraphicsContext.restoreGraphicsState()
-        let targets = [MenuBarUsageColor.blue, .orange, .red].map { tone -> (MenuBarUsageColor, (CGFloat, CGFloat, CGFloat)) in
+        let targets = [MenuBarUsageColor.blue, .orange, .red, .green, .yellow].map { tone -> (MenuBarUsageColor, (CGFloat, CGFloat, CGFloat)) in
             var color = NSColor.black
             appearance.performAsCurrentDrawingAppearance {
                 switch tone {
                 case .blue: color = NSColor.systemBlue
                 case .orange: color = NSColor.orange
                 case .red: color = NSColor.red
+                case .green: color = NSColor.systemGreen
+                case .yellow: color = NSColor.systemYellow
                 }
                 color = color.usingColorSpace(.sRGB) ?? color
             }
@@ -456,6 +505,7 @@ private actor MenuMetricFeed {
         return MenuBarResourceSample(sampledAt: Date(timeIntervalSince1970: Double(self.options.count)), uptime: Double(self.options.count),
                                      cpuTotal: options.showCPU ? tick * 100 : nil, cpuIdle: options.showCPU ? tick * 75 : nil,
                                      memoryFraction: options.showMemory ? 0.64 : nil,
+                                     memoryPressure: options.showMemory ? .warning : nil,
                                      systemPowerWatts: options.showPower ? 18.26 : nil)
     }
 }

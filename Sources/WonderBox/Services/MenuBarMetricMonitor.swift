@@ -29,6 +29,7 @@ final class MenuBarMetricMonitor: ObservableObject {
                 ? PowerReading.validated(wc_smc_read_system_power(), source: "SMC · PSTR")?.watts : nil
             return MenuBarResourceSample(cpuTotal: cpu?.total, cpuIdle: cpu?.idle,
                                          memoryFraction: memory.flatMap { $0.total > 0 ? $0.usedFraction : nil },
+                                         memoryPressure: options.showMemory ? SystemMonitor.memoryPressureReading() : nil,
                                          systemPowerWatts: power)
         }.value
     }, sleep: @escaping Sleeper = { try await Task.sleep(for: .seconds($0)) },

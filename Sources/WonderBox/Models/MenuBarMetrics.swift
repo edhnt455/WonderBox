@@ -22,12 +22,13 @@ struct MenuBarResourceSample: Sendable {
     var cpuTotal: UInt64?
     var cpuIdle: UInt64?
     var memoryFraction: Double?
+    var memoryPressure: MemoryPressure?
     var systemPowerWatts: Double?
 }
 
-/// Stats `Double.usageColor` with its default zones: system blue through 60%, orange through 80%, red above.
-enum MenuBarUsageColor: Equatable, Sendable {
-    case blue, orange, red
+/// CPU uses utilization zones; RAM uses the kernel's memory-pressure level.
+enum MenuBarUsageColor: String, Equatable, Sendable {
+    case blue, orange, red, green, yellow
 
     static func resolve(_ fraction: Double?) -> Self? {
         guard let fraction, fraction.isFinite, (0...1).contains(fraction) else { return nil }
@@ -42,16 +43,19 @@ enum MenuBarUsageColor: Equatable, Sendable {
 struct MenuBarMetricSnapshot: Equatable, Sendable {
     var cpu: Double?
     var memory: Double?
+    var memoryPressure: MemoryPressure?
     var systemPowerWatts: Double?
 
-    init(cpu: Double? = nil, memory: Double? = nil, systemPowerWatts: Double? = nil) {
+    init(cpu: Double? = nil, memory: Double? = nil, memoryPressure: MemoryPressure? = nil, systemPowerWatts: Double? = nil) {
         self.cpu = cpu
         self.memory = memory
+        self.memoryPressure = memoryPressure
         self.systemPowerWatts = systemPowerWatts
     }
 
     init(current: MenuBarResourceSample, previous: MenuBarResourceSample?) {
         memory = current.memoryFraction
+        memoryPressure = current.memoryPressure
         systemPowerWatts = current.systemPowerWatts
         guard let previous,
               (0.25...10).contains(current.uptime - previous.uptime),
@@ -60,6 +64,16 @@ struct MenuBarMetricSnapshot: Equatable, Sendable {
               let oldTotal = previous.cpuTotal, let oldIdle = previous.cpuIdle,
               total > oldTotal, idle >= oldIdle, idle - oldIdle <= total - oldTotal else { return }
         cpu = Double((total - oldTotal) - (idle - oldIdle)) / Double(total - oldTotal)
+    }
+
+    var memoryColor: MenuBarUsageColor? {
+        guard let memory, memory.isFinite, (0...1).contains(memory) else { return nil }
+        switch memoryPressure {
+        case .normal: return .green
+        case .warning: return .yellow
+        case .critical: return .red
+        case nil: return nil
+        }
     }
 
     func title(options: MenuBarMetricOptions) -> String {
