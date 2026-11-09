@@ -25,11 +25,11 @@ final class MenuBarMetricTests: XCTestCase {
         XCTAssertTrue(MenuBarMetricOptions(showCPU: true, showMemory: true).showsAppIcon)
     }
 
-    func testUsageColorMatchesStatsZonesAndPaintsThePercentage() throws {
+    func testCPUColorUsesBlueYellowRedWithExistingUtilizationThresholds() throws {
         XCTAssertEqual(MenuBarUsageColor.resolve(0), .blue)
         XCTAssertEqual(MenuBarUsageColor.resolve(0.6), .blue)
-        XCTAssertEqual(MenuBarUsageColor.resolve(0.6.nextUp), .orange)
-        XCTAssertEqual(MenuBarUsageColor.resolve(0.8), .orange)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.6.nextUp), .yellow)
+        XCTAssertEqual(MenuBarUsageColor.resolve(0.8), .yellow)
         XCTAssertEqual(MenuBarUsageColor.resolve(0.8.nextUp), .red)
         XCTAssertEqual(MenuBarUsageColor.resolve(1), .red)
         XCTAssertNil(MenuBarUsageColor.resolve(nil))
@@ -46,9 +46,9 @@ final class MenuBarMetricTests: XCTestCase {
         XCTAssertFalse(low.isTemplate)
         XCTAssertFalse(high.isTemplate)
         XCTAssertEqual(usageColors(in: low, appearance: aqua), [.blue])
-        XCTAssertEqual(usageColors(in: mid, appearance: aqua), [.orange])
+        XCTAssertEqual(usageColors(in: mid, appearance: aqua), [.yellow])
         XCTAssertEqual(usageColors(in: high, appearance: aqua), [.red])
-        XCTAssertEqual(usageColors(in: both, appearance: aqua), [.green, .red])
+        XCTAssertEqual(usageColors(in: both, appearance: aqua), [.blue, .red])
         XCTAssertGreaterThan(both.size.height, both.size.width / 4, "Each percentage sits under its label")
         XCTAssertGreaterThan(both.size.width, 60)
         XCTAssertLessThan(both.size.width, 100)
@@ -65,7 +65,7 @@ final class MenuBarMetricTests: XCTestCase {
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try XCTUnwrap(NSAppearance(named: name))
             for fraction in [0.12, 0.7, 0.95] {
-                for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.green), (.warning, .yellow), (.critical, .red)] {
+                for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.blue), (.warning, .yellow), (.critical, .red)] {
                     let snapshot = MenuBarMetricSnapshot(memory: fraction, memoryPressure: pressure)
                     XCTAssertEqual(snapshot.memoryColor, color)
                     let image = try XCTUnwrap(MenuBarMetricArtwork.image(options: .init(showMemory: true), snapshot: snapshot, appearance: appearance))
@@ -89,7 +89,7 @@ final class MenuBarMetricTests: XCTestCase {
 
     func testMemoryPressureUpdatesWithoutCPUOrPercentageChangesAndClearsOnFailure() {
         var sample = MenuBarResourceSample(memoryFraction: 0.95, memoryPressure: .normal)
-        for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.green), (.warning, .yellow), (.critical, .red)] {
+        for (pressure, color) in [(MemoryPressure.normal, MenuBarUsageColor.blue), (.warning, .yellow), (.critical, .red)] {
             sample.memoryPressure = pressure
             let snapshot = MenuBarMetricSnapshot(current: sample, previous: nil)
             XCTAssertEqual(snapshot.memoryPressure, pressure)
@@ -114,7 +114,7 @@ final class MenuBarMetricTests: XCTestCase {
             XCTAssertEqual(power.size.height, usage.size.height)
             XCTAssertGreaterThan(combined.size.width, usage.size.width + power.size.width)
             XCTAssertEqual(usageColors(in: power, appearance: appearance), [])
-            XCTAssertEqual(usageColors(in: combined, appearance: appearance), [.green, .red])
+            XCTAssertEqual(usageColors(in: combined, appearance: appearance), [.blue, .red])
             XCTAssertNil(MenuBarMetricArtwork.image(options: .init(menuBarVisible: false, showPower: true), snapshot: snapshot, appearance: appearance))
         }
     }
@@ -417,14 +417,12 @@ final class MenuBarMetricTests: XCTestCase {
         NSGraphicsContext.current = context
         image.draw(in: NSRect(x: 0, y: 0, width: image.size.width * scale, height: image.size.height * scale))
         NSGraphicsContext.restoreGraphicsState()
-        let targets = [MenuBarUsageColor.blue, .orange, .red, .green, .yellow].map { tone -> (MenuBarUsageColor, (CGFloat, CGFloat, CGFloat)) in
+        let targets = [MenuBarUsageColor.blue, .yellow, .red].map { tone -> (MenuBarUsageColor, (CGFloat, CGFloat, CGFloat)) in
             var color = NSColor.black
             appearance.performAsCurrentDrawingAppearance {
                 switch tone {
                 case .blue: color = NSColor.systemBlue
-                case .orange: color = NSColor.orange
                 case .red: color = NSColor.red
-                case .green: color = NSColor.systemGreen
                 case .yellow: color = NSColor.systemYellow
                 }
                 color = color.usingColorSpace(.sRGB) ?? color

@@ -104,9 +104,7 @@ private extension MenuBarUsageColor {
     var nsColor: NSColor {
         switch self {
         case .blue: .systemBlue
-        case .orange: .orange
         case .red: .red
-        case .green: .systemGreen
         case .yellow: .systemYellow
         }
     }
