@@ -1,5 +1,23 @@
 # 上游合并验证
 
+## 2026-11-27：合并 v1.2.5
+
+- 当前分支：`main`，合并前为 `286797e`。
+- 合并来源：`upstream/main`，`a5ff43f`（v1.2.5），包含 1 个新提交。
+- 接入 Navicat Premium 的嵌套支持数据，以及带版本号的 DataGrip Application Support、缓存和日志发现。规则只匹配精确产品身份，厂商根目录、兄弟产品和项目数据保持待确认或不纳入。
+- 保留定制版 `1.3.0 / 130`。README 仍区分当前定制版和上游发行版，上游链接更新到 v1.2.5。
+- 工作区里未提交的菜单栏配色改动在合并前暂存，合并提交不包含这些改动。
+
+### 验证结果
+
+- `git diff --cached --check`：通过；无未解决冲突。
+- `python3 -m unittest discover -s Tests/Packaging -v`：7 项通过。
+- `swift test`：编译成功；361 项测试，10 项跳过，1 项失败。
+- `DatabaseApplicationDataTests` 7 项通过，覆盖 Navicat Premium 多层目录、DataGrip 多版本目录、近似名称和其他产品排除、符号链接、读取失败，以及勾选后只删除产品自身数据。既有关联文件覆盖和选择测试通过。
+- 唯一失败仍为 `PowerTests.testFirstPowerSamplePrimesAnEnergyBaselineWhenHostSupportsCPU`。主机仍为 macOS 27.0.1（26A434）；该测试及生产功耗采样器与上游相同，原因见 2026-11-06 的记录。未通过修改上游功耗策略规避失败。
+
+本次未执行安装、打包发布或远程推送。
+
 ## 2026-11-09：菜单栏 RAM 跟随系统内存压力着色
 
 - RAM 百分比仍为 App + Wired + Compressed 占物理内存的比例；颜色依据内核 `kern.memorystatus_vm_pressure_level`。按用户最终选择，CPU 与 RAM 统一正常蓝、警告黄、严重红；CPU 沿用 ≤60%、>60% 且 ≤80%、>80% 阈值。RAM 压力读取失败或未知时使用普通文字颜色，避免误报正常。
