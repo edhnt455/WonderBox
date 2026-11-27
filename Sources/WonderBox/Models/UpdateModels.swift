@@ -119,10 +119,10 @@ struct AvailableUpdate: Sendable {
 }
 
 enum UpdateSource {
-    static let repositoryPath = "/jasonwong1991/WonderBox/releases"
-    static let latestURL = URL(string: "https://api.github.com/repos/jasonwong1991/WonderBox/releases/latest")!
-    static let releasesURL = URL(string: "https://github.com/jasonwong1991/WonderBox/releases")!
-    static let latestPageURL = URL(string: "https://github.com/jasonwong1991/WonderBox/releases/latest")!
+    static let repositoryPath = "/edhnt455/WonderBox/releases"
+    static let latestURL = URL(string: "https://api.github.com/repos/edhnt455/WonderBox/releases/latest")!
+    static let releasesURL = URL(string: "https://github.com/edhnt455/WonderBox/releases")!
+    static let latestPageURL = URL(string: "https://github.com/edhnt455/WonderBox/releases/latest")!
     static let maximumDownloadSize: Int64 = 200 * 1_024 * 1_024
     static let checkInterval: TimeInterval = 24 * 60 * 60
 

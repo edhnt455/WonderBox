@@ -33,7 +33,7 @@
 | 系统／CPU／GPU 功耗历史 | 应用卸载与关联文件复查 | 卸载监测插件、自动清理 |
 | 温度传感器与风扇转速 | 逐层浏览磁盘占用 | 中英文、浅色／深色、四种强调色 |
 
-**当前定制版**：1.3.0 · 构建 130。**上游发行版**：[1.2.5 · 构建 125](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.5) · [更新说明](docs/releases/v1.2.5.md)。
+**发行版**：[1.2.5 · 构建 125](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.5) · [更新说明](docs/releases/v1.2.5.md)。
 **1.2.5 新增**：卸载扫描支持 Navicat Premium，以及带版本号的 DataGrip Application Support、缓存和日志目录。
 
 扫描结果和诊断记录留在本机。更新检查会连接 GitHub；日志只有在你导出并主动发送时才会分享。没有账号、遥测或自动上传日志。

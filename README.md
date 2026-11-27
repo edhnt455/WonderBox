@@ -33,7 +33,7 @@ Screenshots show the current source build on one Mac, with chosen settings—not
 | System/CPU/GPU power history | App uninstall and related-file review | Opt-in uninstall watcher and automatic cleanup |
 | Temperatures and fan RPM | Folder-by-folder disk analysis | English/简体中文, light/dark themes, four accents |
 
-**Current custom build:** 1.3.0 · build 130. **Upstream release:** [1.2.5 · build 125](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.5) · [release notes](docs/releases/v1.2.5.md).
+**Release:** [1.2.5 · build 125](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.5) · [release notes](docs/releases/v1.2.5.md).
 **New in 1.2.5:** uninstall discovery now includes Navicat Premium and versioned DataGrip Application Support, cache, and log folders.
 
 Scans and diagnostics stay on this Mac. Update checks contact GitHub; exported logs are shared only when you send them. No account, telemetry or automatic log upload.

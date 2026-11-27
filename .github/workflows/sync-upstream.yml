@@ -1,0 +1,231 @@
+name: Sync Upstream with AI & Bark
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # 每 6 小时检查一次（UTC 00/06/12/18，北京时间 08/14/20/02）
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: '即使上游未更新或版本号未升级，也强制打包并覆盖上传当前版本 Release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      should_run: ${{ steps.check.outputs.should_run }}
+      upstream_sha: ${{ steps.check.outputs.upstream_sha }}
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check upstream/main updates
+        id: check
+        run: |
+          git remote add upstream https://github.com/jasonwong1991/WonderBox.git
+          git fetch --no-tags upstream main
+          COUNT=$(git rev-list --count HEAD..upstream/main)
+          SHA=$(git rev-parse --short upstream/main)
+          echo "upstream_sha=$SHA" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_release }}" = "true" ]; then
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sync-and-merge:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.should_run == 'true'
+    runs-on: macos-15
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record pre-merge version and attempt merge
+        id: merge
+        run: |
+          BEFORE_VERSION=$(python3 -c "import pathlib, plistlib; print(plistlib.loads(pathlib.Path('Sources/WonderBox/Resources/Info.plist').read_bytes())['CFBundleShortVersionString'])")
+          echo "before_version=$BEFORE_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ needs.check-upstream.outputs.has_updates }}" != "true" ]; then
+            echo "had_conflict=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/jasonwong1991/WonderBox.git
+          git fetch --no-tags upstream main
+
+          if git merge --no-commit --no-ff upstream/main; then
+            echo "had_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            UNMERGED=$(git diff --name-only --diff-filter=U)
+            if [ -z "$UNMERGED" ]; then
+              echo "git merge failed without unmerged paths"
+              exit 1
+            fi
+            echo "had_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run initial tests when no git conflict
+        id: pre_test
+        if: steps.merge.outputs.had_conflict == 'false'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee /tmp/pre_test.log
+          python3 -m unittest discover -s Tests/Packaging 2>&1 | tee -a /tmp/pre_test.log
+
+      - name: Resolve conflicts or test failures with AI
+        id: ai_resolve
+        if: needs.check-upstream.outputs.has_updates == 'true' && (steps.merge.outputs.had_conflict == 'true' || steps.pre_test.outcome == 'failure')
+        env:
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          MAX_TURNS: '10'
+          PRE_TEST_LOG: /tmp/pre_test.log
+          SUMMARY_OUTPUT_FILE: /tmp/ai_summary.json
+        run: |
+          if [ -z "$LLM_BASE_URL" ] || [ -z "$LLM_API_KEY" ] || [ -z "$LLM_MODEL" ]; then
+            echo "Missing required LLM_BASE_URL, LLM_API_KEY, or LLM_MODEL secret."
+            exit 1
+          fi
+          echo "ai_used=true" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/ai_resolve_merge.py
+
+      - name: Final verification and packaging
+        id: verify
+        run: |
+          UNMERGED=$(git diff --name-only --diff-filter=U)
+          if [ -n "$UNMERGED" ]; then
+            echo "Unmerged files remain: $UNMERGED"
+            exit 1
+          fi
+
+          if [ "${{ steps.ai_resolve.outputs.ai_used }}" = "true" ]; then
+            swift test
+            python3 -m unittest discover -s Tests/Packaging
+          elif [ "${{ steps.pre_test.outcome }}" != "success" ]; then
+            echo "Tests failed during force_release run without upstream merge."
+            exit 1
+          fi
+
+          UNIVERSAL=0 zsh scripts/package_app.sh
+
+          AFTER_VERSION=$(python3 -c "import pathlib, plistlib; print(plistlib.loads(pathlib.Path('Sources/WonderBox/Resources/Info.plist').read_bytes())['CFBundleShortVersionString'])")
+          echo "after_version=$AFTER_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$AFTER_VERSION" != "${{ steps.merge.outputs.before_version }}" ] || [ "${{ inputs.force_release }}" = "true" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push main
+        id: push
+        run: |
+          if [ "${{ needs.check-upstream.outputs.has_updates }}" = "true" ]; then
+            git add -A
+            if [ -f .git/MERGE_HEAD ]; then
+              git commit --no-edit
+            else
+              git commit -m "chore(sync): merge upstream/main (${{ needs.check-upstream.outputs.upstream_sha }})"
+            fi
+            git push origin HEAD:main
+          fi
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          FULL_SHA=$(git rev-parse HEAD)
+          echo "full_sha=$FULL_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Package zip and publish GitHub Release
+        id: release
+        if: steps.verify.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.verify.outputs.after_version }}"
+          TAG="v${VERSION}"
+          ZIP_NAME="WonderBox-${VERSION}.zip"
+          ZIP_PATH="build/${ZIP_NAME}"
+          SUMS_PATH="build/SHA256SUMS"
+
+          rm -f "$ZIP_PATH" "$SUMS_PATH"
+          ditto -c -k --sequesterRsrc --keepParent build/WonderBox.app "$ZIP_PATH"
+          (cd build && shasum -a 256 "$ZIP_NAME" > SHA256SUMS)
+
+          git tag -f "$TAG" "${{ steps.push.outputs.full_sha }}"
+          git push -f origin "refs/tags/${TAG}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP_PATH" "$SUMS_PATH" --clobber
+          else
+            gh release create "$TAG" "$ZIP_PATH" "$SUMS_PATH" \
+              --title "WonderBox ${TAG}" \
+              --notes "Synced from upstream/main (${{ needs.check-upstream.outputs.upstream_sha }}) with fork customizations. Built as arm64 (UNIVERSAL=0)."
+          fi
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Safe abort on failure
+        if: failure()
+        run: |
+          if [ -f .git/MERGE_HEAD ]; then
+            git merge --abort || true
+          fi
+
+      - name: Send Bark notification
+        if: always()
+        env:
+          BARK_URL: ${{ secrets.BARK_URL }}
+          SYNC_STATUS: ${{ job.status }}
+          AI_USED: ${{ steps.ai_resolve.outputs.ai_used == 'true' && 'true' || 'false' }}
+          PUBLISHED_RELEASE: ${{ steps.release.outputs.published == 'true' && 'true' || 'false' }}
+          APP_VERSION: ${{ steps.verify.outputs.after_version }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          UPSTREAM_SHA: ${{ needs.check-upstream.outputs.upstream_sha }}
+          COMMIT_SHA: ${{ steps.push.outputs.commit_sha }}
+          AI_SUMMARY_FILE: /tmp/ai_summary.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          MERGE_OUTCOME: ${{ steps.merge.outcome }}
+          AI_OUTCOME: ${{ steps.ai_resolve.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+        run: |
+          FAILED_STAGE=""
+          if [ "$MERGE_OUTCOME" = "failure" ]; then
+            FAILED_STAGE="拉取与初步合并"
+          elif [ "$AI_OUTCOME" = "failure" ]; then
+            FAILED_STAGE="AI 冲突/测试修复"
+          elif [ "$VERIFY_OUTCOME" = "failure" ]; then
+            FAILED_STAGE="测试或打包验证"
+          elif [ "$PUSH_OUTCOME" = "failure" ]; then
+            FAILED_STAGE="推送 main 分支"
+          elif [ "$RELEASE_OUTCOME" = "failure" ]; then
+            FAILED_STAGE="打包上传 Release"
+          fi
+          export FAILED_STAGE
+          python3 .github/scripts/notify_bark.py

@@ -52,7 +52,7 @@ final class UpdateAndDiagnosticsTests: XCTestCase {
     func testDownloadAssetRequiresExactNameTrustedURLAndSize() throws {
         for overrides: [String: Any] in [
             ["name": "Malicious.zip"], ["size": 0], ["size": UpdateSource.maximumDownloadSize + 1],
-            ["browser_download_url": "http://github.com/jasonwong1991/WonderBox/releases/download/v0.5.0/WonderBox-0.5.0.zip"],
+            ["browser_download_url": "http://github.com/edhnt455/WonderBox/releases/download/v0.5.0/WonderBox-0.5.0.zip"],
             ["browser_download_url": "https://evil.example/WonderBox-0.5.0.zip"],
             ["browser_download_url": "https://github.com/other/repo/releases/download/v0.5.0/WonderBox-0.5.0.zip"]
         ] {
@@ -64,7 +64,7 @@ final class UpdateAndDiagnosticsTests: XCTestCase {
         XCTAssertThrowsError(try fixtureRelease(assetOverrides: ["digest": "sha256:invalid"]).availableUpdate(after: "0.4.0"))
         XCTAssertThrowsError(try fixtureRelease(assetOverrides: ["digest": NSNull()]).availableUpdate(after: "0.4.0"))
         let sums: [String: Any] = ["name": "SHA256SUMS", "size": 86,
-            "browser_download_url": "https://github.com/jasonwong1991/WonderBox/releases/download/v0.5.0/SHA256SUMS"]
+            "browser_download_url": "https://github.com/edhnt455/WonderBox/releases/download/v0.5.0/SHA256SUMS"]
         let update = try XCTUnwrap(fixtureRelease(assetOverrides: ["digest": NSNull()], extraAssets: [sums]).availableUpdate(after: "0.4.0"))
         XCTAssertNil(update.sha256)
         XCTAssertNotNil(update.checksumURL)
@@ -88,8 +88,8 @@ final class UpdateAndDiagnosticsTests: XCTestCase {
     }
 
     func testPublicPageFallbackAcceptsOnlyOfficialStableReleaseTags() throws {
-        XCTAssertEqual(try UpdateSource.releaseTag(from: URL(string: "https://github.com/jasonwong1991/WonderBox/releases/tag/v0.5.0")!), "v0.5.0")
-        for value in ["https://github.com/other/repo/releases/tag/v0.5.0", "https://github.com/jasonwong1991/WonderBox/releases/latest", "https://github.com/jasonwong1991/WonderBox/releases/tag/v0.5.0-beta.1", "https://evil.example/v0.5.0"] {
+        XCTAssertEqual(try UpdateSource.releaseTag(from: URL(string: "https://github.com/edhnt455/WonderBox/releases/tag/v0.5.0")!), "v0.5.0")
+        for value in ["https://github.com/other/repo/releases/tag/v0.5.0", "https://github.com/edhnt455/WonderBox/releases/latest", "https://github.com/edhnt455/WonderBox/releases/tag/v0.5.0-beta.1", "https://evil.example/v0.5.0"] {
             XCTAssertThrowsError(try UpdateSource.releaseTag(from: URL(string: value)!))
         }
     }
@@ -459,11 +459,11 @@ final class UpdateAndDiagnosticsTests: XCTestCase {
     }
     private func fixtureRelease(overrides: [String: Any] = [:], assetOverrides: [String: Any] = [:], extraAssets: [[String: Any]] = []) throws -> GitHubRelease {
         var asset: [String: Any] = ["name": "WonderBox-0.5.0.zip", "size": 100,
-            "browser_download_url": "https://github.com/jasonwong1991/WonderBox/releases/download/v0.5.0/WonderBox-0.5.0.zip",
+            "browser_download_url": "https://github.com/edhnt455/WonderBox/releases/download/v0.5.0/WonderBox-0.5.0.zip",
             "digest": "sha256:" + String(repeating: "a", count: 64)]
         asset.merge(assetOverrides) { _, new in new }
         var object: [String: Any] = ["tag_name": "v0.5.0", "draft": false, "prerelease": false,
-            "html_url": "https://github.com/jasonwong1991/WonderBox/releases/tag/v0.5.0", "body": "Faster updates and diagnostics", "assets": [asset] + extraAssets]
+            "html_url": "https://github.com/edhnt455/WonderBox/releases/tag/v0.5.0", "body": "Faster updates and diagnostics", "assets": [asset] + extraAssets]
         object.merge(overrides) { _, new in new }
         return try JSONDecoder().decode(GitHubRelease.self, from: JSONSerialization.data(withJSONObject: object))
     }
