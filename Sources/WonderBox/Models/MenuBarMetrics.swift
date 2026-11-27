@@ -28,12 +28,12 @@ struct MenuBarResourceSample: Sendable {
 
 /// CPU uses utilization zones; RAM uses the kernel's memory-pressure level.
 enum MenuBarUsageColor: String, Equatable, Sendable {
-    case blue, yellow, red
+    case neutral, yellow, red
 
     static func resolve(_ fraction: Double?) -> Self? {
         guard let fraction, fraction.isFinite, (0...1).contains(fraction) else { return nil }
         switch fraction {
-        case 0...0.6: return .blue
+        case 0...0.6: return .neutral
         case 0.6...0.8: return .yellow
         default: return .red
         }
@@ -69,7 +69,7 @@ struct MenuBarMetricSnapshot: Equatable, Sendable {
     var memoryColor: MenuBarUsageColor? {
         guard let memory, memory.isFinite, (0...1).contains(memory) else { return nil }
         switch memoryPressure {
-        case .normal: return .blue
+        case .normal: return .neutral
         case .warning: return .yellow
         case .critical: return .red
         case nil: return nil

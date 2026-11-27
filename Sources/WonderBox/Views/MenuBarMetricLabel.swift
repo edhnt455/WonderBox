@@ -103,7 +103,7 @@ enum MenuBarMetricArtwork {
 private extension MenuBarUsageColor {
     var nsColor: NSColor {
         switch self {
-        case .blue: .systemBlue
+        case .neutral: .labelColor
         case .red: .red
         case .yellow: .systemYellow
         }
